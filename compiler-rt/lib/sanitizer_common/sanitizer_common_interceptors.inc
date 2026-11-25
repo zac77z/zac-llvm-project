@@ -4030,31 +4030,6 @@ INTERCEPTOR(SIZE_T, wcsnrtombs, char *dest, const wchar_t **src, SIZE_T nms,
 #define INIT_WCSNRTOMBS
 #endif
 
-
-#if SANITIZER_INTERCEPT_WCRTOMB
-INTERCEPTOR(SIZE_T, wcrtomb, char *dest, wchar_t src, void *ps) {
-  void *ctx;
-  COMMON_INTERCEPTOR_ENTER(ctx, wcrtomb, dest, src, ps);
-  if (ps) COMMON_INTERCEPTOR_READ_RANGE(ctx, ps, mbstate_t_sz);
-
-  if (!dest)
-    return REAL(wcrtomb)(dest, src, ps);
-
-  char local_dest[32];
-  SIZE_T res = REAL(wcrtomb)(local_dest, src, ps);
-  if (res != ((SIZE_T)-1)) {
-    CHECK_LE(res, sizeof(local_dest));
-    COMMON_INTERCEPTOR_WRITE_RANGE(ctx, dest, res);
-    internal_memcpy(dest, local_dest, res);
-  }
-  return res;
-}
-
-#define INIT_WCRTOMB COMMON_INTERCEPT_FUNCTION(wcrtomb);
-#else
-#define INIT_WCRTOMB
-#endif
-
 #if SANITIZER_INTERCEPT_WCTOMB
 INTERCEPTOR(int, wctomb, char *dest, wchar_t src) {
   void *ctx;
@@ -4077,7 +4052,8 @@ INTERCEPTOR(int, wctomb, char *dest, wchar_t src) {
 #define INIT_WCTOMB
 #endif
 
-#if SANITIZER_INTERCEPT_MBRTOC8_C8RTOMB || \
+#if SANITIZER_INTERCEPT_MBRTOWC_WCRTOMB || \
+    SANITIZER_INTERCEPT_MBRTOC8_C8RTOMB || \
     SANITIZER_INTERCEPT_MBRTOC16_C16RTOMB_MBRTOC32_C32RTOMB
 template <typename CharT, typename Fn>
 static ALWAYS_INLINE SIZE_T MbrtocImpl(void* ctx, Fn real, CharT* pc,
@@ -4161,8 +4137,29 @@ static ALWAYS_INLINE SIZE_T CrtombImpl(void* ctx, Fn real, char* s, CharT c,
   }
   return res;
 }
-#endif  // SANITIZER_INTERCEPT_MBRTOC8_C8RTOMB ||
+#endif  // SANITIZER_INTERCEPT_MBRTOWC_WCRTOMB ||
+        // SANITIZER_INTERCEPT_MBRTOC8_C8RTOMB ||
         // SANITIZER_INTERCEPT_MBRTOC16_C16RTOMB_MBRTOC32_C32RTOMB
+
+#if SANITIZER_INTERCEPT_MBRTOWC_WCRTOMB
+INTERCEPTOR(SIZE_T, mbrtowc, wchar_t* pwc, const char* s, SIZE_T n, void* ps) {
+  void* ctx;
+  COMMON_INTERCEPTOR_ENTER(ctx, mbrtowc, pwc, s, n, ps);
+  return MbrtocImpl(ctx, REAL(mbrtowc), pwc, s, n, ps);
+}
+
+INTERCEPTOR(SIZE_T, wcrtomb, char* dest, wchar_t src, void* ps) {
+  void* ctx;
+  COMMON_INTERCEPTOR_ENTER(ctx, wcrtomb, dest, src, ps);
+  return CrtombImpl(ctx, REAL(wcrtomb), dest, src, ps);
+}
+
+#  define INIT_MBRTOWC_WCRTOMB          \
+    COMMON_INTERCEPT_FUNCTION(mbrtowc); \
+    COMMON_INTERCEPT_FUNCTION(wcrtomb);
+#else
+#  define INIT_MBRTOWC_WCRTOMB
+#endif  // SANITIZER_INTERCEPT_MBRTOWC_WCRTOMB
 
 #if SANITIZER_INTERCEPT_MBRTOC8_C8RTOMB
 #  ifdef __cpp_char8_t
@@ -10854,7 +10851,7 @@ static void InitializeCommonInterceptors() {
   INIT_MBSNRTOWCS;
   INIT_WCSTOMBS;
   INIT_WCSNRTOMBS;
-  INIT_WCRTOMB;
+  INIT_MBRTOWC_WCRTOMB;
   INIT_WCTOMB;
   INIT_MBRTOC8_C8RTOMB;
   INIT_MBRTOC16_C16RTOMB_MBRTOC32_C32RTOMB;

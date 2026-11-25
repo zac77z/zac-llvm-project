@@ -352,7 +352,7 @@ SANITIZER_WEAK_IMPORT void *aligned_alloc(__sanitizer::usize __alignment,
 #define SANITIZER_INTERCEPT___WCSXFRM_L SI_LINUX
 #define SANITIZER_INTERCEPT_WCSNRTOMBS \
   (SI_FREEBSD || SI_NETBSD || SI_MAC || SI_LINUX_NOT_ANDROID || SI_SOLARIS)
-#define SANITIZER_INTERCEPT_WCRTOMB                                           \
+#define SANITIZER_INTERCEPT_MBRTOWC_WCRTOMB                                   \
   (SI_FREEBSD || SI_NETBSD || SI_MAC || SI_LINUX_NOT_ANDROID || SI_SOLARIS || \
    !SI_NOT_AIX)
 #define SANITIZER_INTERCEPT_WCTOMB \

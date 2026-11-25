@@ -664,14 +664,6 @@ INTERCEPTOR(int, mbtowc, wchar_t *dest, const char *src, SIZE_T n) {
   return res;
 }
 
-INTERCEPTOR(SIZE_T, mbrtowc, wchar_t *dest, const char *src, SIZE_T n,
-            void *ps) {
-  ENSURE_MSAN_INITED();
-  SIZE_T res = REAL(mbrtowc)(dest, src, n, ps);
-  if (res != (SIZE_T)-1 && dest) __msan_unpoison(dest, sizeof(wchar_t));
-  return res;
-}
-
 // wchar_t *wmemcpy(wchar_t *dest, const wchar_t *src, SIZE_T n);
 INTERCEPTOR(wchar_t *, wmemcpy, wchar_t *dest, const wchar_t *src, SIZE_T n) {
   ENSURE_MSAN_INITED();
@@ -1891,7 +1883,6 @@ void InitializeInterceptors() {
   INTERCEPT_FUNCTION(wcsftime_l);
   MSAN_MAYBE_INTERCEPT___WCSFTIME_L;
   INTERCEPT_FUNCTION(mbtowc);
-  INTERCEPT_FUNCTION(mbrtowc);
   INTERCEPT_FUNCTION(wcslen);
   INTERCEPT_FUNCTION(wcsnlen);
   INTERCEPT_FUNCTION(wcschr);
